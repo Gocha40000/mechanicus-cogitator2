@@ -702,11 +702,12 @@ body::after{
 /* ── Accent colours per section ── */
 .app-shell > section:nth-child(3){ --accent:#c5a059; }
 .app-shell > section:nth-child(4){ --accent:#2563eb; }
-.app-shell > div:nth-child(5) > section:nth-child(1){ --accent:#16a34a; }
-.app-shell > div:nth-child(5) > section:nth-child(2){ --accent:#d97706; }
-.app-shell > section:nth-child(6){ --accent:#7c3aed; }
-.app-shell > section:nth-child(7){ --accent:#ea580c; }
-.app-shell > section:nth-child(8){ --accent:#991b1b; }
+.app-shell > section:nth-child(5){ --accent:#0d9488; }
+.app-shell > div:nth-child(6) > section:nth-child(1){ --accent:#16a34a; }
+.app-shell > div:nth-child(6) > section:nth-child(2){ --accent:#d97706; }
+.app-shell > section:nth-child(7){ --accent:#7c3aed; }
+.app-shell > section:nth-child(8){ --accent:#ea580c; }
+.app-shell > section:nth-child(9){ --accent:#991b1b; }
 
 /* ── Landing hero flicker ── */
 #hero h1{
@@ -1010,6 +1011,69 @@ body::after{
                 <div class="mt-6 flex flex-col md:flex-row justify-center gap-4 border-t border-[#262b31] pt-6">
                     <button class="wh-button wh-button-plasma w-full md:w-auto px-8" onclick="runConcat('cross')">СЦЕПИТЬ: КАЖДОЕ С КАЖДЫМ</button>
                     <button class="wh-button wh-button-forge w-full md:w-auto px-8" onclick="runConcat('line')">СЦЕПИТЬ: ПОСТРОЧНО</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- ФИЛЬТР LSA -->
+        <section id="lsa-filter" class="section">
+            <div class="section-header">
+                <div>
+                    <p class="section-label">LSA Purification Protocol</p>
+                    <h2 class="section-title"><span class="diamond"></span> Фильтр Релевантности LSA</h2>
+                </div>
+                <div class="small-note">Очистка LSA-фраз от мусора</div>
+            </div>
+            <div class="workspace">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+                    <!-- Левый: Банк мусора -->
+                    <div class="flex flex-col gap-3">
+                        <div class="flex justify-between items-center">
+                            <span class="small-note text-[#d7b36a]">Банк мусорных фраз&nbsp;<span id="trashCount" class="text-[var(--terminal)]">(0)</span></span>
+                            <button onclick="clearTrashBank()" class="text-xs gothic-text uppercase tracking-widest text-[#e68a68] hover:text-white border border-[#a32e00] px-2 py-1 bg-[#3d1000]">Очистить банк</button>
+                        </div>
+
+                        <!-- Одиночный ввод -->
+                        <div class="flex gap-2">
+                            <input type="text" id="trashInput"
+                                class="flex-1 bg-[#050607] border border-[#272c31] text-[var(--text)] p-2 text-sm focus:border-[var(--gold-dim)] focus:outline-none"
+                                placeholder="Введите мусорную фразу..."
+                                onkeydown="if(event.key==='Enter') addTrashPhrase()">
+                            <button onclick="addTrashPhrase()" class="wh-button !min-h-[36px] py-1 px-4 text-sm whitespace-nowrap">+ Добавить</button>
+                        </div>
+
+                        <!-- Bulk ввод -->
+                        <div class="terminal-frame">
+                            <textarea id="trashBulkInput" class="terminal !min-h-[100px] !text-[14px] !p-3" placeholder="Или вставьте список мусорных фраз (по одной в строке)..."></textarea>
+                        </div>
+                        <button onclick="addTrashBulk()" class="wh-button wh-button-forge !min-h-[40px] py-2 text-sm">ДОБАВИТЬ СПИСОК В БАНК МУСОРА</button>
+
+                        <!-- Список сохранённых -->
+                        <div id="trashList" class="flex flex-col gap-1 max-h-[300px] overflow-y-auto border border-[#1a1e23] bg-[#080a0c] p-2 min-h-[60px]"></div>
+                    </div>
+
+                    <!-- Правый: LSA -->
+                    <div class="flex flex-col gap-3">
+                        <span class="small-note text-[#d7b36a]">LSA-фразы для очистки</span>
+                        <div class="terminal-frame">
+                            <textarea id="lsaInput" class="terminal !min-h-[220px] !text-[16px]" placeholder="Вставьте LSA-фразы сюда (по одной в строке)..."></textarea>
+                        </div>
+
+                        <button onclick="cleanLsa()" class="wh-button wh-button-plasma w-full !min-h-[48px]">ОЧИСТИТЬ LSA ОТ МУСОРА</button>
+
+                        <!-- Результат -->
+                        <div id="lsaResultBlock" style="display:none" class="flex flex-col gap-3">
+                            <div class="flex justify-between items-center">
+                                <span class="small-note text-[#2dd4bf]">Результат&nbsp;<span id="lsaRemovedCount" class="text-[var(--terminal)]"></span></span>
+                                <button onclick="copyLsaClean()" class="text-xs gothic-text uppercase tracking-widest text-[#73a2db] hover:text-white border border-[#1c4b82] px-2 py-1 bg-[#05162e]">Копировать</button>
+                            </div>
+                            <div class="terminal-frame">
+                                <textarea id="lsaOutput" class="terminal !min-h-[200px] !text-[16px]" readonly placeholder="Очищенный список..."></textarea>
+                            </div>
+                        </div>
+                    </div>
+
                 </div>
             </div>
         </section>
@@ -1797,6 +1861,111 @@ async function copyDonateNumber() {
         setTimeout(() => { btn.innerText = originalText; }, 1400);
     }
 }
+
+// === LSA FILTER ===
+let trashBank = JSON.parse(localStorage.getItem('cogitator_trash') || '[]');
+
+function saveTrash() {
+    localStorage.setItem('cogitator_trash', JSON.stringify(trashBank));
+}
+
+function escHtml(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function renderTrashList() {
+    const list = document.getElementById('trashList');
+    const count = document.getElementById('trashCount');
+    if (!list) return;
+    count.textContent = '(' + trashBank.length + ')';
+    if (trashBank.length === 0) {
+        list.innerHTML = '<div class="text-xs text-center py-3 uppercase tracking-widest" style="color:var(--muted)">Банк пуст</div>';
+        return;
+    }
+    list.innerHTML = trashBank.map((phrase, i) =>
+        `<div class="flex items-center justify-between gap-2 px-2 py-1 border border-[#1f2429] text-sm group" style="color:var(--muted)">
+            <span class="truncate">${escHtml(phrase)}</span>
+            <button onclick="removeTrash(${i})" class="flex-shrink-0 text-xs px-1 leading-none hover:text-red-400" style="color:#7a0000">✕</button>
+        </div>`
+    ).join('');
+}
+
+function addTrashPhrase() {
+    const inp = document.getElementById('trashInput');
+    const val = inp.value.trim();
+    if (!val) return;
+    if (!trashBank.some(p => p.toLowerCase() === val.toLowerCase())) {
+        trashBank.push(val);
+        saveTrash();
+        renderTrashList();
+    }
+    inp.value = '';
+}
+
+function addTrashBulk() {
+    const ta = document.getElementById('trashBulkInput');
+    const lines = ta.value.split('\n').map(l => l.trim()).filter(Boolean);
+    lines.forEach(phrase => {
+        if (!trashBank.some(p => p.toLowerCase() === phrase.toLowerCase())) {
+            trashBank.push(phrase);
+        }
+    });
+    saveTrash();
+    ta.value = '';
+    renderTrashList();
+}
+
+function removeTrash(i) {
+    trashBank.splice(i, 1);
+    saveTrash();
+    renderTrashList();
+}
+
+function clearTrashBank() {
+    if (!trashBank.length) return;
+    trashBank = [];
+    saveTrash();
+    renderTrashList();
+}
+
+function cleanLsa() {
+    const lines = document.getElementById('lsaInput').value
+        .split('\n').map(l => l.trim()).filter(Boolean);
+    const trashSet = new Set(trashBank.map(p => p.toLowerCase()));
+
+    const clean = lines.filter(l => !trashSet.has(l.toLowerCase()));
+    const removedCount = lines.length - clean.length;
+
+    document.getElementById('lsaOutput').value = clean.join('\n');
+    document.getElementById('lsaRemovedCount').textContent =
+        `— удалено: ${removedCount}, осталось: ${clean.length}`;
+    const block = document.getElementById('lsaResultBlock');
+    block.style.display = 'flex';
+    block.style.flexDirection = 'column';
+}
+
+async function copyLsaClean() {
+    const text = document.getElementById('lsaOutput').value;
+    if (!text.trim()) return;
+    try {
+        if (navigator.clipboard && window.isSecureContext) {
+            await navigator.clipboard.writeText(text);
+        } else {
+            const ta = document.getElementById('lsaOutput');
+            ta.removeAttribute('readonly');
+            ta.focus();
+            ta.select();
+            document.execCommand('copy');
+            ta.setAttribute('readonly', 'readonly');
+        }
+        const btn = document.querySelector('button[onclick="copyLsaClean()"]');
+        const orig = btn.innerText;
+        btn.innerText = 'Скопировано!';
+        setTimeout(() => { btn.innerText = orig; }, 1400);
+    } catch(e) { console.error(e); }
+}
+
+renderTrashList();
 
 statusMode.textContent = modeNames[mode];
 updateStatus("", "");
