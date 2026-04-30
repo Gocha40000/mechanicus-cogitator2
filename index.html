@@ -1863,7 +1863,16 @@ async function copyDonateNumber() {
 }
 
 // === LSA FILTER ===
-let trashBank = JSON.parse(localStorage.getItem('cogitator_trash') || '[]');
+let trashBank = (function() {
+    const raw = JSON.parse(localStorage.getItem('cogitator_trash') || '[]');
+    const seen = new Set();
+    return raw.filter(p => {
+        const key = p.trim().toLowerCase();
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+    });
+})();
 
 function saveTrash() {
     localStorage.setItem('cogitator_trash', JSON.stringify(trashBank));
@@ -1905,9 +1914,12 @@ function addTrashPhrase() {
 function addTrashBulk() {
     const ta = document.getElementById('trashBulkInput');
     const lines = ta.value.split('\n').map(l => l.trim()).filter(Boolean);
+    const seen = new Set(trashBank.map(p => p.toLowerCase()));
     lines.forEach(phrase => {
-        if (!trashBank.some(p => p.toLowerCase() === phrase.toLowerCase())) {
+        const key = phrase.toLowerCase();
+        if (!seen.has(key)) {
             trashBank.push(phrase);
+            seen.add(key);
         }
     });
     saveTrash();
