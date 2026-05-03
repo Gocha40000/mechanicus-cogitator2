@@ -1941,12 +1941,13 @@ function clearTrashBank() {
 }
 
 function cleanLsa() {
-    const lines = document.getElementById('lsaInput').value
-        .split('\n').map(l => l.trim()).filter(Boolean);
+    const raw = document.getElementById('lsaInput').value;
+    // split by newlines and/or commas
+    const items = raw.split(/[\n,]+/).map(l => l.trim()).filter(Boolean);
     const trashSet = new Set(trashBank.map(p => p.toLowerCase()));
 
-    const clean = lines.filter(l => !trashSet.has(l.toLowerCase()));
-    const removedCount = lines.length - clean.length;
+    const clean = items.filter(l => !trashSet.has(l.toLowerCase()));
+    const removedCount = items.length - clean.length;
 
     document.getElementById('lsaOutput').value = clean.join('\n');
     document.getElementById('lsaRemovedCount').textContent =
